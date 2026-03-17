@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "RSS Reader"
+version = "1.0.0"
+id = "artifacts/rss-reader"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+localPort = 24560
+name = "expo"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/rss-reader run dev"
+
+[services.env]
+PORT = "24560"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/rss-reader", "run", "build"]
+run = ["pnpm", "--filter", "@workspace/rss-reader", "run", "serve"]
