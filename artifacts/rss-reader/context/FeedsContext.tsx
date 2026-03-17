@@ -100,15 +100,19 @@ async function fetchFeedData(
     let itemsRaw: string[] = [];
 
     if (isAtom) {
-      feedTitle = stripHtml(getTagContent(xml, "title"));
-      feedDesc = stripHtml(getTagContent(xml, "subtitle"));
+      // Only parse feed-level metadata from the section before the first <entry>
+      const feedHeader = xml.split(/<entry[\s>]/i)[0] ?? xml;
+      feedTitle = stripHtml(getTagContent(feedHeader, "title"));
+      feedDesc = stripHtml(getTagContent(feedHeader, "subtitle"));
       const entryMatches = xml.match(/<entry[\s\S]*?<\/entry>/gi) ?? [];
       itemsRaw = entryMatches;
     } else {
       const channelMatch = xml.match(/<channel>([\s\S]*?)<\/channel>/i) ?? [, xml];
       const channelContent = channelMatch[1] ?? xml;
-      feedTitle = stripHtml(getTagContent(channelContent, "title"));
-      feedDesc = stripHtml(getTagContent(channelContent, "description"));
+      // Only parse feed-level metadata from the section before the first <item>
+      const channelHeader = channelContent.split(/<item[\s>]/i)[0] ?? channelContent;
+      feedTitle = stripHtml(getTagContent(channelHeader, "title"));
+      feedDesc = stripHtml(getTagContent(channelHeader, "description"));
       const itemMatches = xml.match(/<item[\s\S]*?<\/item>/gi) ?? [];
       itemsRaw = itemMatches;
     }
