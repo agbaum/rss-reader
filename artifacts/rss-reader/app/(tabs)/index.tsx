@@ -129,6 +129,8 @@ export default function TodayScreen() {
             refreshing={isRefreshing}
             onRefresh={refreshFeeds}
             tintColor={Colors.light.accent}
+            colors={[Colors.light.accent]}
+            progressBackgroundColor={Colors.light.surface}
           />
         }
         contentContainerStyle={styles.list}
