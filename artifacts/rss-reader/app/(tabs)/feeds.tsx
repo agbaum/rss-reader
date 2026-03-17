@@ -16,27 +16,29 @@ import { AddFeedSheet } from "@/components/AddFeedSheet";
 import Colors from "@/constants/colors";
 import { Feed, useFeeds } from "@/context/FeedsContext";
 
-function FeedRow({ feed, onRemove, onRefresh }: {
+function FeedRow({
+  feed,
+  onRemove,
+  onRefresh,
+}: {
   feed: Feed;
   onRemove: (id: string) => void;
   onRefresh: (id: string) => void;
 }) {
   const { articles } = useFeeds();
-  const unread = articles.filter(
-    (a) => a.feedId === feed.id && !a.isRead
-  ).length;
+  const unread = articles.filter((a) => a.feedId === feed.id && !a.isRead).length;
   const total = articles.filter((a) => a.feedId === feed.id).length;
 
   const handleLongPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(`Remove "${feed.title}"?`, "This will delete all articles from this feed.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => onRemove(feed.id),
-      },
-    ]);
+    Alert.alert(
+      `Remove "${feed.title}"?`,
+      "This will delete all articles from this feed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => onRemove(feed.id) },
+      ]
+    );
   }, [feed, onRemove]);
 
   const handleRefresh = useCallback(() => {
@@ -56,10 +58,7 @@ function FeedRow({ feed, onRemove, onRefresh }: {
     <Pressable
       onLongPress={handleLongPress}
       delayLongPress={500}
-      style={({ pressed }) => [
-        styles.feedRow,
-        pressed && { opacity: 0.85 },
-      ]}
+      style={({ pressed }) => [styles.feedRow, pressed && { opacity: 0.8 }]}
     >
       <View style={styles.feedIcon}>
         <Feather name="rss" size={16} color={Colors.light.accent} />
@@ -78,7 +77,7 @@ function FeedRow({ feed, onRemove, onRefresh }: {
       <Pressable
         onPress={handleRefresh}
         hitSlop={12}
-        style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.6 }]}
+        style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.5 }]}
       >
         <Feather name="refresh-cw" size={16} color={Colors.light.textTertiary} />
       </Pressable>
@@ -91,8 +90,7 @@ export default function FeedsScreen() {
   const insets = useSafeAreaInsets();
   const [showAdd, setShowAdd] = useState(false);
 
-  const topPad =
-    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
   const renderItem = useCallback(
     ({ item }: { item: Feed }) => (
@@ -115,7 +113,7 @@ export default function FeedsScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setShowAdd(true);
           }}
-          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.75 }]}
         >
           <Feather name="plus" size={20} color={Colors.light.accent} />
         </Pressable>
@@ -134,10 +132,7 @@ export default function FeedsScreen() {
       </Text>
       <Pressable
         onPress={() => setShowAdd(true)}
-        style={({ pressed }) => [
-          styles.emptyAddBtn,
-          pressed && { opacity: 0.85 },
-        ]}
+        style={({ pressed }) => [styles.emptyAddBtn, pressed && { opacity: 0.85 }]}
       >
         <Text style={styles.emptyAddText}>Add a feed</Text>
       </Pressable>

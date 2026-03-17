@@ -20,8 +20,7 @@ const FILTERS = ["All", "Unread"] as const;
 type Filter = (typeof FILTERS)[number];
 
 export default function TodayScreen() {
-  const { articles, isRefreshing, refreshFeeds, markAsRead, markAllAsRead, toggleSaved } =
-    useFeeds();
+  const { articles, isRefreshing, refreshFeeds, markAsRead, markAllAsRead } = useFeeds();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>("Unread");
 
@@ -40,24 +39,14 @@ export default function TodayScreen() {
     markAllAsRead();
   }, [markAllAsRead]);
 
-  const handleRefresh = useCallback(() => {
-    refreshFeeds();
-  }, [refreshFeeds]);
-
   const renderItem = useCallback(
     ({ item }: { item: Article }) => (
-      <ArticleCard
-        article={item}
-        onMarkRead={markAsRead}
-        onToggleSaved={toggleSaved}
-        showFeedName
-      />
+      <ArticleCard article={item} onMarkRead={markAsRead} showFeedName />
     ),
-    [markAsRead, toggleSaved]
+    [markAsRead]
   );
 
-  const topPad =
-    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
   const ListHeader = (
     <View style={[styles.header, { paddingTop: topPad + 16 }]}>
@@ -138,7 +127,7 @@ export default function TodayScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            onRefresh={refreshFeeds}
             tintColor={Colors.light.accent}
           />
         }
@@ -212,7 +201,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   filterTextActive: {
-    color: "#fff",
+    color: Colors.light.background,
   },
   empty: {
     flex: 1,

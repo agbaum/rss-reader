@@ -16,7 +16,6 @@ import { Article } from "@/context/FeedsContext";
 interface ArticleCardProps {
   article: Article;
   onMarkRead: (id: string) => void;
-  onToggleSaved: (id: string) => void;
   showFeedName?: boolean;
 }
 
@@ -37,7 +36,6 @@ function timeAgo(ts?: number): string {
 export function ArticleCard({
   article,
   onMarkRead,
-  onToggleSaved,
   showFeedName = true,
 }: ArticleCardProps) {
   const handlePress = useCallback(() => {
@@ -57,15 +55,6 @@ export function ArticleCard({
       },
     });
   }, [article, onMarkRead]);
-
-  const handleSave = useCallback(
-    (e: any) => {
-      e.stopPropagation?.();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onToggleSaved(article.id);
-    },
-    [article.id, onToggleSaved]
-  );
 
   return (
     <Pressable
@@ -106,28 +95,11 @@ export function ArticleCard({
           )}
         </View>
 
-        <View style={styles.footer}>
-          {!!article.author && (
-            <Text style={styles.author} numberOfLines={1}>
-              {article.author}
-            </Text>
-          )}
-          <Pressable
-            onPress={handleSave}
-            hitSlop={12}
-            style={styles.saveBtn}
-          >
-            <Feather
-              name="bookmark"
-              size={16}
-              color={
-                article.isSaved
-                  ? Colors.light.accent
-                  : Colors.light.textTertiary
-              }
-            />
-          </Pressable>
-        </View>
+        {!!article.author && (
+          <Text style={styles.author} numberOfLines={1}>
+            {article.author}
+          </Text>
+        )}
       </View>
 
       {!article.isRead && <View style={styles.unreadDot} />}
@@ -146,7 +118,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardPressed: {
-    opacity: 0.85,
+    opacity: 0.8,
     transform: [{ scale: 0.99 }],
   },
   content: {
@@ -203,19 +175,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: Colors.light.surfaceAlt,
   },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   author: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: Colors.light.textTertiary,
-    flex: 1,
-  },
-  saveBtn: {
-    padding: 2,
   },
   unreadDot: {
     width: 7,

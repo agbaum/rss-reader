@@ -3,9 +3,8 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import {
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -17,20 +16,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useFeeds } from "@/context/FeedsContext";
 
 export default function ArticleScreen() {
-  const { url, title, articleId } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     url: string;
     title: string;
-    articleId?: string;
-    imageUrl?: string;
-    description?: string;
-    author?: string;
-    feedTitle?: string;
-    publishedAt?: string;
-  }>();
-  const params = useLocalSearchParams<{
     imageUrl?: string;
     description?: string;
     author?: string;
@@ -38,11 +28,7 @@ export default function ArticleScreen() {
     publishedAt?: string;
   }>();
 
-  const { toggleSaved, articles } = useFeeds();
   const insets = useSafeAreaInsets();
-
-  const article = articleId ? articles.find((a) => a.id === articleId) : undefined;
-
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
   const handleClose = useCallback(() => {
@@ -51,36 +37,28 @@ export default function ArticleScreen() {
 
   const handleShare = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Share.share({ url: url ?? "", message: title ?? "" });
-  }, [url, title]);
+    Share.share({ url: params.url ?? "", message: params.title ?? "" });
+  }, [params.url, params.title]);
 
   const handleOpenBrowser = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (url) {
-      await WebBrowser.openBrowserAsync(url, {
+    if (params.url) {
+      await WebBrowser.openBrowserAsync(params.url, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
         toolbarColor: Colors.light.surface,
       });
     }
-  }, [url]);
-
-  const handleSave = useCallback(() => {
-    if (articleId) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      toggleSaved(articleId);
-    }
-  }, [articleId, toggleSaved]);
-
-  const isSaved = article?.isSaved ?? false;
+  }, [params.url]);
 
   const publishedAt = params.publishedAt ? parseInt(params.publishedAt) : undefined;
-  const dateStr = publishedAt
-    ? new Date(publishedAt).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : undefined;
+  const dateStr =
+    publishedAt && !isNaN(publishedAt)
+      ? new Date(publishedAt).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : undefined;
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -93,19 +71,6 @@ export default function ArticleScreen() {
           <Feather name="chevron-down" size={24} color={Colors.light.text} />
         </Pressable>
         <View style={styles.toolbarActions}>
-          {!!articleId && (
-            <Pressable
-              onPress={handleSave}
-              hitSlop={12}
-              style={({ pressed }) => [styles.toolbarBtn, pressed && { opacity: 0.6 }]}
-            >
-              <Feather
-                name="bookmark"
-                size={20}
-                color={isSaved ? Colors.light.accent : Colors.light.text}
-              />
-            </Pressable>
-          )}
           <Pressable
             onPress={handleShare}
             hitSlop={12}
@@ -128,15 +93,13 @@ export default function ArticleScreen() {
           <Text style={styles.feedName}>{params.feedTitle}</Text>
         )}
 
-        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.title}>{params.title}</Text>
 
         <View style={styles.meta}>
           {!!params.author && (
             <Text style={styles.metaText}>{params.author}</Text>
           )}
-          {!!dateStr && (
-            <Text style={styles.metaText}>{dateStr}</Text>
-          )}
+          {!!dateStr && <Text style={styles.metaText}>{dateStr}</Text>}
         </View>
 
         {!!params.imageUrl && (
@@ -163,9 +126,7 @@ export default function ArticleScreen() {
           <Feather name="external-link" size={16} color="#fff" />
         </Pressable>
 
-        <Text style={styles.readFullNote}>
-          Opens in your browser
-        </Text>
+        <Text style={styles.readFullNote}>Opens in your browser</Text>
       </ScrollView>
     </View>
   );

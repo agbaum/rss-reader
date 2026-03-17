@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import createContextHook from "@nkzw/create-context-hook";
 import React, {
   createContext,
   useContext,
@@ -16,7 +15,6 @@ export interface Feed {
   description?: string;
   imageUrl?: string;
   lastFetched?: number;
-  errorMessage?: string;
 }
 
 export interface Article {
@@ -26,12 +24,10 @@ export interface Article {
   feedUrl: string;
   title: string;
   description?: string;
-  content?: string;
   url: string;
   imageUrl?: string;
   publishedAt?: number;
   isRead: boolean;
-  isSaved: boolean;
   author?: string;
 }
 
@@ -43,11 +39,9 @@ interface FeedsContextValue {
   removeFeed: (id: string) => void;
   markAsRead: (articleId: string) => void;
   markAllAsRead: (feedId?: string) => void;
-  toggleSaved: (articleId: string) => void;
   refreshFeeds: () => Promise<void>;
   refreshFeed: (feedId: string) => Promise<void>;
   unreadCount: number;
-  savedArticles: Article[];
 }
 
 const FeedsContext = createContext<FeedsContextValue | null>(null);
@@ -55,7 +49,6 @@ const FeedsContext = createContext<FeedsContextValue | null>(null);
 const FEEDS_KEY = "rss_feeds_v2";
 const ARTICLES_KEY = "rss_articles_v2";
 const READ_KEY = "rss_read_ids_v2";
-const SAVED_KEY = "rss_saved_ids_v2";
 
 function generateId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -104,14 +97,11 @@ async function fetchFeedData(
 
     let feedTitle = "";
     let feedDesc = "";
-    let feedImage = "";
     let itemsRaw: string[] = [];
 
     if (isAtom) {
       feedTitle = stripHtml(getTagContent(xml, "title"));
       feedDesc = stripHtml(getTagContent(xml, "subtitle"));
-      const iconMatch = xml.match(/<icon>([^<]+)<\/icon>/i);
-      feedImage = iconMatch?.[1] ?? "";
       const entryMatches = xml.match(/<entry[\s\S]*?<\/entry>/gi) ?? [];
       itemsRaw = entryMatches;
     } else {
@@ -119,8 +109,6 @@ async function fetchFeedData(
       const channelContent = channelMatch[1] ?? xml;
       feedTitle = stripHtml(getTagContent(channelContent, "title"));
       feedDesc = stripHtml(getTagContent(channelContent, "description"));
-      const imgUrlMatch = channelContent.match(/<image>[\s\S]*?<url>([^<]+)<\/url>/i);
-      feedImage = imgUrlMatch?.[1] ?? "";
       const itemMatches = xml.match(/<item[\s\S]*?<\/item>/gi) ?? [];
       itemsRaw = itemMatches;
     }
@@ -149,8 +137,7 @@ async function fetchFeedData(
           getTagContent(item, "description") ||
           getTagContent(item, "content:encoded");
         pubDate = getTagContent(item, "pubDate") || getTagContent(item, "dc:date");
-        author =
-          getTagContent(item, "author") || getTagContent(item, "dc:creator");
+        author = getTagContent(item, "author") || getTagContent(item, "dc:creator");
 
         const mediaUrlMatch = item.match(/<media:content[^>]+url=["']([^"']+)["']/i);
         const enclosureMatch = item.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image/i);
@@ -165,10 +152,9 @@ async function fetchFeedData(
       }
 
       const publishedAt = pubDate ? new Date(pubDate).getTime() : Date.now();
-      const id = generateId() + link;
 
       return {
-        id,
+        id: generateId(),
         title: title || "Untitled",
         url: link,
         description: description?.slice(0, 300),
@@ -176,7 +162,6 @@ async function fetchFeedData(
         publishedAt: isNaN(publishedAt) ? Date.now() : publishedAt,
         author: author || undefined,
         isRead: false,
-        isSaved: false,
       };
     });
 
@@ -184,7 +169,6 @@ async function fetchFeedData(
       feed: {
         title: feedTitle || new URL(url).hostname,
         description: feedDesc || undefined,
-        imageUrl: feedImage || undefined,
       },
       articles,
     };
@@ -198,22 +182,19 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [feedsStr, articlesStr, readStr, savedStr] = await Promise.all([
+        const [feedsStr, articlesStr, readStr] = await Promise.all([
           AsyncStorage.getItem(FEEDS_KEY),
           AsyncStorage.getItem(ARTICLES_KEY),
           AsyncStorage.getItem(READ_KEY),
-          AsyncStorage.getItem(SAVED_KEY),
         ]);
         if (feedsStr) setFeeds(JSON.parse(feedsStr));
         if (articlesStr) setArticles(JSON.parse(articlesStr));
         if (readStr) setReadIds(new Set(JSON.parse(readStr)));
-        if (savedStr) setSavedIds(new Set(JSON.parse(savedStr)));
       } catch (e) {
         console.error("Load error:", e);
       }
@@ -236,11 +217,6 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(READ_KEY, JSON.stringify([...ids]));
   }, []);
 
-  const saveSavedIds = useCallback(async (ids: Set<string>) => {
-    setSavedIds(ids);
-    await AsyncStorage.setItem(SAVED_KEY, JSON.stringify([...ids]));
-  }, []);
-
   const addFeed = useCallback(
     async (url: string): Promise<{ success: boolean; error?: string }> => {
       const trimmed = url.trim();
@@ -249,14 +225,14 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
         return { success: false, error: "Feed already added" };
 
       const result = await fetchFeedData(trimmed);
-      if (!result) return { success: false, error: "Could not load feed. Check the URL and try again." };
+      if (!result)
+        return { success: false, error: "Could not load feed. Check the URL and try again." };
 
       const newFeed: Feed = {
         id: generateId(),
         url: trimmed,
         title: result.feed.title ?? new URL(trimmed).hostname,
         description: result.feed.description,
-        imageUrl: result.feed.imageUrl,
         lastFetched: Date.now(),
       };
 
@@ -269,7 +245,6 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
         title: a.title ?? "Untitled",
         url: a.url ?? "",
         isRead: false,
-        isSaved: false,
         publishedAt: a.publishedAt ?? Date.now(),
       }));
 
@@ -307,23 +282,11 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   const markAllAsRead = useCallback(
     async (feedId?: string) => {
       const newIds = new Set(readIds);
-      const toMark = feedId
-        ? articles.filter((a) => a.feedId === feedId)
-        : articles;
+      const toMark = feedId ? articles.filter((a) => a.feedId === feedId) : articles;
       toMark.forEach((a) => newIds.add(a.id));
       await saveReadIds(newIds);
     },
     [readIds, articles, saveReadIds]
-  );
-
-  const toggleSaved = useCallback(
-    async (articleId: string) => {
-      const newIds = new Set(savedIds);
-      if (newIds.has(articleId)) newIds.delete(articleId);
-      else newIds.add(articleId);
-      await saveSavedIds(newIds);
-    },
-    [savedIds, saveSavedIds]
   );
 
   const refreshFeed = useCallback(
@@ -349,22 +312,14 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
           title: a.title ?? "Untitled",
           url: a.url ?? "",
           isRead: false,
-          isSaved: false,
           publishedAt: a.publishedAt ?? Date.now(),
         }));
 
-      const updatedFeed = {
-        ...feed,
-        title: result.feed.title ?? feed.title,
-        lastFetched: Date.now(),
-      };
-      const updatedFeeds = feeds.map((f) =>
-        f.id === feedId ? updatedFeed : f
+      const updatedFeed = { ...feed, title: result.feed.title ?? feed.title, lastFetched: Date.now() };
+      const updatedFeeds = feeds.map((f) => (f.id === feedId ? updatedFeed : f));
+      const updatedArticles = [...newArticles, ...articles].sort(
+        (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0)
       );
-      const updatedArticles = [
-        ...newArticles,
-        ...articles,
-      ].sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
 
       await saveFeeds(updatedFeeds);
       await saveArticles(updatedArticles);
@@ -381,11 +336,9 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   const articlesWithState = articles.map((a) => ({
     ...a,
     isRead: readIds.has(a.id),
-    isSaved: savedIds.has(a.id),
   }));
 
   const unreadCount = articlesWithState.filter((a) => !a.isRead).length;
-  const savedArticles = articlesWithState.filter((a) => a.isSaved);
 
   return (
     <FeedsContext.Provider
@@ -397,11 +350,9 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
         removeFeed,
         markAsRead,
         markAllAsRead,
-        toggleSaved,
         refreshFeeds,
         refreshFeed,
         unreadCount,
-        savedArticles,
       }}
     >
       {children}
