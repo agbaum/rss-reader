@@ -63,13 +63,24 @@ function stripHtml(html: string): string {
   return html?.replace(/<[^>]*>/g, "").replace(/&[^;]+;/g, " ").trim() ?? "";
 }
 
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function fetchFeedData(
   url: string
 ): Promise<{ feed: Partial<Feed>; articles: Partial<Article>[] } | null> {
   try {
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-    if (!response.ok) throw new Error("Network error");
+    const response = await fetchWithTimeout(proxyUrl, 15000);
+    if (!response.ok) throw new Error(`Network error: ${response.status}`);
     const data = await response.json();
     const xml: string = data.contents;
     if (!xml) throw new Error("Empty response");
@@ -361,41 +372,92 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
       const result = await fetchFeedData(feed.url);
       if (!result) return;
 
-      const existingUrls = new Set(
-        articles.filter((a) => a.feedId === feedId).map((a) => a.url)
-      );
+      // Snapshot current articles to avoid stale state issues
+      setArticles((currentArticles) => {
+        const existingUrls = new Set(
+          currentArticles.filter((a) => a.feedId === feedId).map((a) => a.url)
+        );
+        const newArticles: Article[] = result.articles
+          .filter((a) => !existingUrls.has(a.url ?? ""))
+          .map((a) => ({
+            ...a,
+            id: generateId(),
+            feedId: feed.id,
+            feedTitle: result.feed.title ?? feed.title,
+            feedUrl: feed.url,
+            title: a.title ?? "Untitled",
+            url: a.url ?? "",
+            isRead: false,
+            publishedAt: a.publishedAt ?? Date.now(),
+          }));
+        const sorted = [...newArticles, ...currentArticles].sort(
+          (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0)
+        );
+        AsyncStorage.setItem(ARTICLES_KEY, JSON.stringify(sorted));
+        return sorted;
+      });
 
-      const newArticles: Article[] = result.articles
-        .filter((a) => !existingUrls.has(a.url ?? ""))
-        .map((a) => ({
-          ...a,
-          id: generateId(),
-          feedId: feed.id,
-          feedTitle: result.feed.title ?? feed.title,
-          feedUrl: feed.url,
-          title: a.title ?? "Untitled",
-          url: a.url ?? "",
-          isRead: false,
-          publishedAt: a.publishedAt ?? Date.now(),
-        }));
-
-      const updatedFeed = { ...feed, title: result.feed.title ?? feed.title, lastFetched: Date.now() };
-      const updatedFeeds = feeds.map((f) => (f.id === feedId ? updatedFeed : f));
-      const updatedArticles = [...newArticles, ...articles].sort(
-        (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0)
-      );
-
-      await saveFeeds(updatedFeeds);
-      await saveArticles(updatedArticles);
+      setFeeds((currentFeeds) => {
+        const updated = currentFeeds.map((f) =>
+          f.id === feedId
+            ? { ...f, title: result.feed.title ?? f.title, lastFetched: Date.now() }
+            : f
+        );
+        AsyncStorage.setItem(FEEDS_KEY, JSON.stringify(updated));
+        return updated;
+      });
     },
-    [feeds, articles, saveFeeds, saveArticles]
+    [feeds]
   );
 
   const refreshFeeds = useCallback(async () => {
+    if (feeds.length === 0) return;
     setIsRefreshing(true);
-    await Promise.all(feeds.map((f) => refreshFeed(f.id)));
+
+    // Fetch all feeds in parallel, then do a single merged save
+    const results = await Promise.all(
+      feeds.map(async (feed) => ({ feed, result: await fetchFeedData(feed.url) }))
+    );
+
+    setArticles((currentArticles) => {
+      let merged = [...currentArticles];
+      for (const { feed, result } of results) {
+        if (!result) continue;
+        const existingUrls = new Set(
+          merged.filter((a) => a.feedId === feed.id).map((a) => a.url)
+        );
+        const newArticles: Article[] = result.articles
+          .filter((a) => !existingUrls.has(a.url ?? ""))
+          .map((a) => ({
+            ...a,
+            id: generateId(),
+            feedId: feed.id,
+            feedTitle: result.feed.title ?? feed.title,
+            feedUrl: feed.url,
+            title: a.title ?? "Untitled",
+            url: a.url ?? "",
+            isRead: false,
+            publishedAt: a.publishedAt ?? Date.now(),
+          }));
+        merged = [...newArticles, ...merged];
+      }
+      const sorted = merged.sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
+      AsyncStorage.setItem(ARTICLES_KEY, JSON.stringify(sorted));
+      return sorted;
+    });
+
+    setFeeds((currentFeeds) => {
+      const updated = currentFeeds.map((f) => {
+        const match = results.find((r) => r.feed.id === f.id);
+        if (!match?.result) return f;
+        return { ...f, title: match.result.feed.title ?? f.title, lastFetched: Date.now() };
+      });
+      AsyncStorage.setItem(FEEDS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
     setIsRefreshing(false);
-  }, [feeds, refreshFeed]);
+  }, [feeds]);
 
   const articlesWithState = articles.map((a) => ({
     ...a,
