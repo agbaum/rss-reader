@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   FlatList,
   Pressable,
   RefreshControl,
@@ -18,6 +19,37 @@ import { Article, useFeeds } from "@/context/FeedsContext";
 
 const FILTERS = ["All", "Unread"] as const;
 type Filter = (typeof FILTERS)[number];
+
+function RefreshingBar({ visible }: { visible: boolean }) {
+  const spin = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      loopRef.current = Animated.loop(
+        Animated.timing(spin, { toValue: 1, duration: 900, useNativeDriver: true, isInteraction: false })
+      );
+      loopRef.current.start();
+    } else {
+      loopRef.current?.stop();
+      spin.setValue(0);
+      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    }
+  }, [visible]);
+
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  return (
+    <Animated.View style={[styles.refreshBar, { opacity }]}>
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <Feather name="refresh-cw" size={13} color={Colors.light.accent} />
+      </Animated.View>
+      <Text style={styles.refreshBarText}>Updating feeds…</Text>
+    </Animated.View>
+  );
+}
 
 export default function TodayScreen() {
   const { articles, isRefreshing, refreshFeeds, markAsRead, markAllAsRead } = useFeeds();
@@ -50,6 +82,7 @@ export default function TodayScreen() {
 
   const ListHeader = (
     <View style={[styles.header, { paddingTop: topPad + 16 }]}>
+      <RefreshingBar visible={isRefreshing} />
       <View style={styles.headerTop}>
         <View>
           <Text style={styles.heading}>Inbox</Text>
@@ -124,6 +157,7 @@ export default function TodayScreen() {
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
+        overScrollMode="always"
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -151,6 +185,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
     gap: 16,
+  },
+  refreshBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.light.accentLight,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+    marginBottom: 4,
+  },
+  refreshBarText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: Colors.light.accent,
   },
   headerTop: {
     flexDirection: "row",

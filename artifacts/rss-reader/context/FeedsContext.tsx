@@ -414,49 +414,51 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
     if (feeds.length === 0) return;
     setIsRefreshing(true);
 
-    // Fetch all feeds in parallel, then do a single merged save
-    const results = await Promise.all(
-      feeds.map(async (feed) => ({ feed, result: await fetchFeedData(feed.url) }))
-    );
+    try {
+      // Fetch all feeds in parallel, then do a single merged save
+      const results = await Promise.all(
+        feeds.map(async (feed) => ({ feed, result: await fetchFeedData(feed.url) }))
+      );
 
-    setArticles((currentArticles) => {
-      let merged = [...currentArticles];
-      for (const { feed, result } of results) {
-        if (!result) continue;
-        const existingUrls = new Set(
-          merged.filter((a) => a.feedId === feed.id).map((a) => a.url)
-        );
-        const newArticles: Article[] = result.articles
-          .filter((a) => !existingUrls.has(a.url ?? ""))
-          .map((a) => ({
-            ...a,
-            id: generateId(),
-            feedId: feed.id,
-            feedTitle: result.feed.title ?? feed.title,
-            feedUrl: feed.url,
-            title: a.title ?? "Untitled",
-            url: a.url ?? "",
-            isRead: false,
-            publishedAt: a.publishedAt ?? Date.now(),
-          }));
-        merged = [...newArticles, ...merged];
-      }
-      const sorted = merged.sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
-      AsyncStorage.setItem(ARTICLES_KEY, JSON.stringify(sorted));
-      return sorted;
-    });
-
-    setFeeds((currentFeeds) => {
-      const updated = currentFeeds.map((f) => {
-        const match = results.find((r) => r.feed.id === f.id);
-        if (!match?.result) return f;
-        return { ...f, title: match.result.feed.title ?? f.title, lastFetched: Date.now() };
+      setArticles((currentArticles) => {
+        let merged = [...currentArticles];
+        for (const { feed, result } of results) {
+          if (!result) continue;
+          const existingUrls = new Set(
+            merged.filter((a) => a.feedId === feed.id).map((a) => a.url)
+          );
+          const newArticles: Article[] = result.articles
+            .filter((a) => !existingUrls.has(a.url ?? ""))
+            .map((a) => ({
+              ...a,
+              id: generateId(),
+              feedId: feed.id,
+              feedTitle: result.feed.title ?? feed.title,
+              feedUrl: feed.url,
+              title: a.title ?? "Untitled",
+              url: a.url ?? "",
+              isRead: false,
+              publishedAt: a.publishedAt ?? Date.now(),
+            }));
+          merged = [...newArticles, ...merged];
+        }
+        const sorted = merged.sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
+        AsyncStorage.setItem(ARTICLES_KEY, JSON.stringify(sorted));
+        return sorted;
       });
-      AsyncStorage.setItem(FEEDS_KEY, JSON.stringify(updated));
-      return updated;
-    });
 
-    setIsRefreshing(false);
+      setFeeds((currentFeeds) => {
+        const updated = currentFeeds.map((f) => {
+          const match = results.find((r) => r.feed.id === f.id);
+          if (!match?.result) return f;
+          return { ...f, title: match.result.feed.title ?? f.title, lastFetched: Date.now() };
+        });
+        AsyncStorage.setItem(FEEDS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [feeds]);
 
   const articlesWithState = articles.map((a) => ({
