@@ -196,11 +196,71 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem(ARTICLES_KEY),
           AsyncStorage.getItem(READ_KEY),
         ]);
-        if (feedsStr) setFeeds(JSON.parse(feedsStr));
-        if (articlesStr) setArticles(JSON.parse(articlesStr));
-        if (readStr) setReadIds(new Set(JSON.parse(readStr)));
+
+        const loadedFeeds: Feed[] = feedsStr ? JSON.parse(feedsStr) : [];
+        const loadedArticles: Article[] = articlesStr ? JSON.parse(articlesStr) : [];
+        const loadedReadIds: Set<string> = readStr
+          ? new Set(JSON.parse(readStr))
+          : new Set();
+
+        setFeeds(loadedFeeds);
+        setArticles(loadedArticles);
+        setReadIds(loadedReadIds);
+
+        // Background refresh using loaded data directly (avoids stale closure)
+        if (loadedFeeds.length > 0) {
+          setIsRefreshing(true);
+          await Promise.all(
+            loadedFeeds.map(async (feed) => {
+              const result = await fetchFeedData(feed.url);
+              if (!result) return;
+
+              const existingUrls = new Set(
+                loadedArticles.filter((a) => a.feedId === feed.id).map((a) => a.url)
+              );
+
+              const newArticles: Article[] = result.articles
+                .filter((a) => !existingUrls.has(a.url ?? ""))
+                .map((a) => ({
+                  ...a,
+                  id: generateId(),
+                  feedId: feed.id,
+                  feedTitle: result.feed.title ?? feed.title,
+                  feedUrl: feed.url,
+                  title: a.title ?? "Untitled",
+                  url: a.url ?? "",
+                  isRead: false,
+                  publishedAt: a.publishedAt ?? Date.now(),
+                }));
+
+              const updatedFeed = {
+                ...feed,
+                title: result.feed.title ?? feed.title,
+                lastFetched: Date.now(),
+              };
+
+              loadedFeeds.splice(
+                loadedFeeds.findIndex((f) => f.id === feed.id),
+                1,
+                updatedFeed
+              );
+              loadedArticles.unshift(...newArticles);
+            })
+          );
+
+          const sorted = [...loadedArticles].sort(
+            (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0)
+          );
+
+          setFeeds([...loadedFeeds]);
+          setArticles(sorted);
+          await AsyncStorage.setItem(FEEDS_KEY, JSON.stringify(loadedFeeds));
+          await AsyncStorage.setItem(ARTICLES_KEY, JSON.stringify(sorted));
+          setIsRefreshing(false);
+        }
       } catch (e) {
         console.error("Load error:", e);
+        setIsRefreshing(false);
       }
     };
     load();
