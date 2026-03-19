@@ -15,12 +15,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ArticleCard } from "@/components/ArticleCard";
 import { FeedsPanel } from "@/components/FeedsPanel";
+import { RecentlyReadPanel } from "@/components/RecentlyReadPanel";
 import { Sidebar } from "@/components/Sidebar";
 import Colors from "@/constants/colors";
 import { Article, useFeeds } from "@/context/FeedsContext";
-
-const FILTERS = ["All", "Unread"] as const;
-type Filter = (typeof FILTERS)[number];
 
 function RefreshingBar({ visible }: { visible: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
@@ -56,19 +54,16 @@ function RefreshingBar({ visible }: { visible: boolean }) {
 export default function TodayScreen() {
   const { articles, isRefreshing, refreshFeeds, markAsRead, markAllAsRead } = useFeeds();
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState<Filter>("Unread");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [feedsPanelOpen, setFeedsPanelOpen] = useState(false);
+  const [recentlyReadOpen, setRecentlyReadOpen] = useState(false);
 
-  const filtered = useMemo(() => {
-    if (filter === "Unread") return articles.filter((a) => !a.isRead);
-    return articles;
-  }, [articles, filter]);
-
-  const unreadCount = useMemo(
-    () => articles.filter((a) => !a.isRead).length,
+  const unreadArticles = useMemo(
+    () => articles.filter((a) => !a.isRead),
     [articles]
   );
+
+  const unreadCount = unreadArticles.length;
 
   const handleMarkAllRead = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -89,6 +84,11 @@ export default function TodayScreen() {
       icon: "rss" as const,
       label: "Feeds",
       onPress: () => setFeedsPanelOpen(true),
+    },
+    {
+      icon: "book-open" as const,
+      label: "Recently Read",
+      onPress: () => setRecentlyReadOpen(true),
     },
   ];
 
@@ -129,28 +129,6 @@ export default function TodayScreen() {
           </Pressable>
         )}
       </View>
-
-      <View style={styles.filters}>
-        {FILTERS.map((f) => (
-          <Pressable
-            key={f}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setFilter(f);
-            }}
-            style={[styles.filter, filter === f && styles.filterActive]}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === f && styles.filterTextActive,
-              ]}
-            >
-              {f}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
     </View>
   );
 
@@ -159,29 +137,17 @@ export default function TodayScreen() {
       <View style={styles.emptyIcon}>
         <Feather name="inbox" size={32} color={Colors.light.textTertiary} />
       </View>
-      <Text style={styles.emptyTitle}>
-        {filter === "Unread" ? "All caught up" : "No articles yet"}
-      </Text>
+      <Text style={styles.emptyTitle}>All caught up</Text>
       <Text style={styles.emptyDesc}>
-        {filter === "Unread"
-          ? "You've read everything. Check back later."
-          : "Add some feeds to get started."}
+        Nothing new to read. Check back later or add more feeds.
       </Text>
-      {filter !== "Unread" && (
-        <Pressable
-          onPress={() => setFeedsPanelOpen(true)}
-          style={({ pressed }) => [styles.emptyAddBtn, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.emptyAddText}>Manage feeds</Text>
-        </Pressable>
-      )}
     </View>
   );
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={filtered}
+        data={unreadArticles}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
@@ -211,6 +177,11 @@ export default function TodayScreen() {
       <FeedsPanel
         visible={feedsPanelOpen}
         onClose={() => setFeedsPanelOpen(false)}
+      />
+
+      <RecentlyReadPanel
+        visible={recentlyReadOpen}
+        onClose={() => setRecentlyReadOpen(false)}
       />
     </View>
   );
@@ -290,27 +261,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_500Medium",
     color: Colors.light.accent,
-  },
-  filters: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  filter: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.light.surfaceAlt,
-  },
-  filterActive: {
-    backgroundColor: Colors.light.text,
-  },
-  filterText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: Colors.light.textSecondary,
-  },
-  filterTextActive: {
-    color: Colors.light.background,
   },
   empty: {
     flex: 1,
