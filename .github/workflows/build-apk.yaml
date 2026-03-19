@@ -35,9 +35,10 @@ jobs:
 
       - name: 🚀 Build APK
         id: build_apk
+        working-directory: artifacts/rss-reader
         run: |
-          # Add the local node_modules bin folder to the PATH
-          export PATH=$(pwd)/node_modules/.bin:$PATH
+          # Ensure repo-level node_modules bin is on PATH
+          export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"
           # The --output flag tells EAS to download the finished APK to a specific file path
           eas build --platform android --profile production --non-interactive --local --output=./app-release.apk
 
