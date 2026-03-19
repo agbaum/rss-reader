@@ -52,7 +52,7 @@ function RefreshingBar({ visible }: { visible: boolean }) {
 }
 
 export default function TodayScreen() {
-  const { articles, isRefreshing, refreshFeeds, markAsRead, markAllAsRead } = useFeeds();
+  const { articles, isRefreshing, refreshFeeds, markAsRead } = useFeeds();
   const insets = useSafeAreaInsets();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [feedsPanelOpen, setFeedsPanelOpen] = useState(false);
@@ -62,13 +62,6 @@ export default function TodayScreen() {
     () => articles.filter((a) => !a.isRead),
     [articles]
   );
-
-  const unreadCount = unreadArticles.length;
-
-  const handleMarkAllRead = useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    markAllAsRead();
-  }, [markAllAsRead]);
 
   const renderItem = useCallback(
     ({ item }: { item: Article }) => (
@@ -95,40 +88,16 @@ export default function TodayScreen() {
   const ListHeader = (
     <View style={[styles.header, { paddingTop: topPad + 16 }]}>
       <RefreshingBar visible={isRefreshing} />
-      <View style={styles.headerTop}>
-        <View style={styles.headerLeft}>
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              setSidebarOpen(true);
-            }}
-            hitSlop={8}
-            style={({ pressed }) => [styles.menuBtn, pressed && { opacity: 0.6 }]}
-          >
-            <Feather name="menu" size={20} color={Colors.light.text} />
-          </Pressable>
-          <View>
-            <Text style={styles.heading}>Inbox</Text>
-            {unreadCount > 0 && (
-              <Text style={styles.subheading}>
-                {unreadCount} unread article{unreadCount !== 1 ? "s" : ""}
-              </Text>
-            )}
-          </View>
-        </View>
-        {unreadCount > 0 && (
-          <Pressable
-            onPress={handleMarkAllRead}
-            style={({ pressed }) => [
-              styles.markAllBtn,
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Feather name="check-circle" size={16} color={Colors.light.accent} />
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </Pressable>
-        )}
-      </View>
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync();
+          setSidebarOpen(true);
+        }}
+        hitSlop={8}
+        style={({ pressed }) => [styles.menuBtn, pressed && { opacity: 0.6 }]}
+      >
+        <Feather name="menu" size={20} color={Colors.light.text} />
+      </Pressable>
     </View>
   );
 
@@ -216,16 +185,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     color: Colors.light.accent,
   },
-  headerTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
   menuBtn: {
     width: 36,
     height: 36,
@@ -234,33 +193,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
-  },
-  heading: {
-    fontSize: 34,
-    fontFamily: "Inter_700Bold",
-    color: Colors.light.text,
-    letterSpacing: -0.5,
-  },
-  subheading: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  markAllBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: Colors.light.accentLight,
-    borderRadius: 20,
-    marginTop: 8,
-  },
-  markAllText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: Colors.light.accent,
   },
   empty: {
     flex: 1,
