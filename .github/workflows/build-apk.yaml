@@ -37,7 +37,7 @@ jobs:
         id: build_apk
         run: |
           # The --output flag tells EAS to download the finished APK to a specific file path
-          eas build --platform android --profile preview --non-interactive --local --output=./app-release.apk
+          eas build --platform android --profile production --non-interactive --local --output=./app-release.apk
 
       - name: 📢 Create GitHub Release
         uses: softprops/action-gh-release@v1
