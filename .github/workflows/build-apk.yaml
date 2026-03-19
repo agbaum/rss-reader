@@ -19,6 +19,12 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: 🏗 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9 # Or your specific version
+          run_install: false
+
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
         with:
@@ -26,7 +32,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 📦 Install dependencies
-        run: npm install
+        run: pnpm install
 
       - name: 🚀 Build APK
         id: build_apk
