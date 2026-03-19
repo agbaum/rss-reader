@@ -6,7 +6,7 @@
       }
     },
     "name": "Reader",
-    "slug": "agtree-rss-reader",
+    "slug": "workspace",
     "version": "1.0.0",
     "android": {
       "package": "com.akpgreentree.rssreader", 
