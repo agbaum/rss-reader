@@ -19,7 +19,7 @@
     "android": {
       "package": "com.akpgreentree.rssreader", 
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       }
     },
