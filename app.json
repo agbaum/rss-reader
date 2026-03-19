@@ -4,6 +4,16 @@
       "eas": {
         "projectId": "94e88b47-aaeb-4856-98a1-1f584b3e5e2d"
       }
+    },
+    "name": "Reader",
+    "slug": "agtree-rss-reader",
+    "version": "1.0.0",
+    "android": {
+      "package": "com.akpgreentree.rssreader", 
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     }
   }
 }
