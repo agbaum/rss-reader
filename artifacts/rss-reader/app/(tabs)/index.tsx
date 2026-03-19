@@ -14,6 +14,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ArticleCard } from "@/components/ArticleCard";
+import { FeedsPanel } from "@/components/FeedsPanel";
+import { Sidebar } from "@/components/Sidebar";
 import Colors from "@/constants/colors";
 import { Article, useFeeds } from "@/context/FeedsContext";
 
@@ -55,6 +57,8 @@ export default function TodayScreen() {
   const { articles, isRefreshing, refreshFeeds, markAsRead, markAllAsRead } = useFeeds();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>("Unread");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [feedsPanelOpen, setFeedsPanelOpen] = useState(false);
 
   const filtered = useMemo(() => {
     if (filter === "Unread") return articles.filter((a) => !a.isRead);
@@ -80,17 +84,37 @@ export default function TodayScreen() {
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
+  const sidebarItems = [
+    {
+      icon: "rss" as const,
+      label: "Feeds",
+      onPress: () => setFeedsPanelOpen(true),
+    },
+  ];
+
   const ListHeader = (
     <View style={[styles.header, { paddingTop: topPad + 16 }]}>
       <RefreshingBar visible={isRefreshing} />
       <View style={styles.headerTop}>
-        <View>
-          <Text style={styles.heading}>Inbox</Text>
-          {unreadCount > 0 && (
-            <Text style={styles.subheading}>
-              {unreadCount} unread article{unreadCount !== 1 ? "s" : ""}
-            </Text>
-          )}
+        <View style={styles.headerLeft}>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setSidebarOpen(true);
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [styles.menuBtn, pressed && { opacity: 0.6 }]}
+          >
+            <Feather name="menu" size={20} color={Colors.light.text} />
+          </Pressable>
+          <View>
+            <Text style={styles.heading}>Inbox</Text>
+            {unreadCount > 0 && (
+              <Text style={styles.subheading}>
+                {unreadCount} unread article{unreadCount !== 1 ? "s" : ""}
+              </Text>
+            )}
+          </View>
         </View>
         {unreadCount > 0 && (
           <Pressable
@@ -141,8 +165,16 @@ export default function TodayScreen() {
       <Text style={styles.emptyDesc}>
         {filter === "Unread"
           ? "You've read everything. Check back later."
-          : "Add some feeds in the Feeds tab to get started."}
+          : "Add some feeds to get started."}
       </Text>
+      {filter !== "Unread" && (
+        <Pressable
+          onPress={() => setFeedsPanelOpen(true)}
+          style={({ pressed }) => [styles.emptyAddBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.emptyAddText}>Manage feeds</Text>
+        </Pressable>
+      )}
     </View>
   );
 
@@ -169,6 +201,17 @@ export default function TodayScreen() {
         }
         contentContainerStyle={styles.list}
       />
+
+      <Sidebar
+        visible={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        items={sidebarItems}
+      />
+
+      <FeedsPanel
+        visible={feedsPanelOpen}
+        onClose={() => setFeedsPanelOpen(false)}
+      />
     </View>
   );
 }
@@ -179,7 +222,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   list: {
-    paddingBottom: Platform.OS === "web" ? 34 : 100,
+    paddingBottom: Platform.OS === "web" ? 34 : 40,
   },
   header: {
     paddingHorizontal: 20,
@@ -206,6 +249,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  menuBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.light.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
   },
   heading: {
     fontSize: 34,
@@ -284,5 +341,17 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: "center",
     lineHeight: 21,
+  },
+  emptyAddBtn: {
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.light.accent,
+    borderRadius: 12,
+  },
+  emptyAddText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
   },
 });

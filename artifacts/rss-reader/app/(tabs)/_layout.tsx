@@ -1,99 +1,23 @@
-import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
-import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform } from "react-native";
 
 import Colors from "@/constants/colors";
 
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
-        <Label>Today</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="feeds">
-        <Icon sf={{ default: "antenna.radiowaves.left.and.right", selected: "antenna.radiowaves.left.and.right.fill" }} />
-        <Label>Feeds</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
-
-function ClassicTabLayout() {
-  const isIOS = Platform.OS === "ios";
-  const isWeb = Platform.OS === "web";
-
+export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarStyle: { display: "none" },
         tabBarActiveTintColor: Colors.light.accent,
-        tabBarInactiveTintColor: Colors.light.textTertiary,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : Colors.light.surface,
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: Colors.light.border,
-          elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
-        },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={100}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
-          ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: Colors.light.surface },
-              ]}
-            />
-          ) : null,
-        tabBarLabelStyle: {
-          fontFamily: "Inter_500Medium",
-          fontSize: 10,
-        },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Today",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="list.bullet" tintColor={color} size={22} />
-            ) : (
-              <Feather name="list" size={22} color={color} />
-            ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: "Today" }} />
       <Tabs.Screen
         name="feeds"
-        options={{
-          title: "Feeds",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="antenna.radiowaves.left.and.right" tintColor={color} size={22} />
-            ) : (
-              <Feather name="rss" size={22} color={color} />
-            ),
-        }}
+        options={{ href: null }}
       />
     </Tabs>
   );
-}
-
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
 }
