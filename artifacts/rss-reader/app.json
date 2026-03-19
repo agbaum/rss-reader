@@ -16,7 +16,12 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.akpgreentree.rssreader", 
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
