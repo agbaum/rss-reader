@@ -7,6 +7,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
+import { Platform } from "react-native";
 
 export interface Feed {
   id: string;
@@ -78,11 +79,22 @@ async function fetchFeedData(
   url: string
 ): Promise<{ feed: Partial<Feed>; articles: Partial<Article>[] } | null> {
   try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetchWithTimeout(proxyUrl, 15000);
-    if (!response.ok) throw new Error(`Network error: ${response.status}`);
-    const data = await response.json();
-    const xml: string = data.contents;
+    let xml: string;
+
+    if (Platform.OS === "web") {
+      // Browser needs a CORS proxy
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const response = await fetchWithTimeout(proxyUrl, 15000);
+      if (!response.ok) throw new Error(`Network error: ${response.status}`);
+      const data = await response.json();
+      xml = data.contents;
+    } else {
+      // React Native fetches directly — no CORS restriction on device
+      const response = await fetchWithTimeout(url, 15000);
+      if (!response.ok) throw new Error(`Network error: ${response.status}`);
+      xml = await response.text();
+    }
+
     if (!xml) throw new Error("Empty response");
 
     const isAtom = xml.includes("<feed");
