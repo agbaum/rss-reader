@@ -33,6 +33,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fa9eab84-403a-4e8f-b00f-a2491106dfc1"
+      }
+    },
+    "owner": "akpgreentree"
   }
 }
