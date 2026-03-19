@@ -90,15 +90,19 @@ async function fetchFeedData(
       xml = data.contents;
     } else {
       // React Native fetches directly — no CORS restriction on device
+      console.log("[RSS] Fetching direct:", url);
       const response = await fetchWithTimeout(url, 15000);
+      console.log("[RSS] Response status:", response.status, response.ok);
       if (!response.ok) throw new Error(`Network error: ${response.status}`);
       xml = await response.text();
+      console.log("[RSS] XML length:", xml.length, "preview:", xml.slice(0, 80));
     }
 
     if (!xml) throw new Error("Empty response");
 
     const isAtom = xml.includes("<feed");
     const isRss = xml.includes("<rss") || xml.includes("<channel");
+    console.log("[RSS] isAtom:", isAtom, "isRss:", isRss);
     if (!isAtom && !isRss) throw new Error("Not a valid RSS/Atom feed");
 
     const getTagContent = (text: string, tag: string): string => {
@@ -192,6 +196,7 @@ async function fetchFeedData(
       };
     });
 
+    console.log("[RSS] Parsed articles:", articles.length, "feedTitle:", feedTitle);
     return {
       feed: {
         title: feedTitle || new URL(url).hostname,
@@ -200,7 +205,7 @@ async function fetchFeedData(
       articles,
     };
   } catch (e) {
-    console.error("Feed fetch error:", e);
+    console.error("[RSS] Feed fetch error:", url, e);
     return null;
   }
 }
@@ -231,16 +236,21 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
         setReadIds(loadedReadIds);
 
         // Background refresh using loaded data directly (avoids stale closure)
+        console.log("[RSS] Loaded feeds:", loadedFeeds.length, "articles:", loadedArticles.length);
         if (loadedFeeds.length > 0) {
           setIsRefreshing(true);
           await Promise.all(
             loadedFeeds.map(async (feed) => {
               const result = await fetchFeedData(feed.url);
-              if (!result) return;
+              if (!result) {
+                console.log("[RSS] No result for feed:", feed.url);
+                return;
+              }
 
               const existingUrls = new Set(
                 loadedArticles.filter((a) => a.feedId === feed.id).map((a) => a.url)
               );
+              console.log("[RSS] Feed:", feed.title, "existing:", existingUrls.size, "fetched:", result.articles.length);
 
               const newArticles: Article[] = result.articles
                 .filter((a) => !existingUrls.has(a.url ?? ""))
@@ -274,6 +284,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
           const sorted = [...loadedArticles].sort(
             (a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0)
           );
+          console.log("[RSS] After refresh total articles:", sorted.length);
 
           setFeeds([...loadedFeeds]);
           setArticles(sorted);
