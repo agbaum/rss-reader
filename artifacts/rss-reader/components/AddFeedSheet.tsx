@@ -18,12 +18,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useFeeds } from "@/context/FeedsContext";
 
-const SAMPLE_FEEDS = [
-  { name: "The Verge", url: "https://www.theverge.com/rss/index.xml" },
-  { name: "Hacker News", url: "https://news.ycombinator.com/rss" },
-  { name: "NASA Breaking News", url: "https://www.nasa.gov/feeds/iotd-feed/" },
-  { name: "Wired", url: "https://www.wired.com/feed/rss" },
-];
 
 interface Props {
   visible: boolean;
@@ -60,25 +54,6 @@ export function AddFeedSheet({ visible, onClose }: Props) {
       Alert.alert("Could not add feed", result.error ?? "Unknown error");
     }
   }, [url, isLoading, addFeed, onClose]);
-
-  const handleSample = useCallback(
-    async (sampleUrl: string) => {
-      setUrl(sampleUrl);
-      setIsLoading(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const result = await addFeed(sampleUrl);
-      setIsLoading(false);
-      if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setUrl("");
-        onClose();
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert("Could not add feed", result.error ?? "Unknown error");
-      }
-    },
-    [addFeed, onClose]
-  );
 
   return (
     <Modal
@@ -143,31 +118,6 @@ export function AddFeedSheet({ visible, onClose }: Props) {
           )}
         </Pressable>
 
-        <View style={styles.suggestions}>
-          <Text style={styles.suggestionsLabel}>Popular feeds</Text>
-          {SAMPLE_FEEDS.map((s) => (
-            <Pressable
-              key={s.url}
-              style={({ pressed }) => [
-                styles.suggestion,
-                pressed && { backgroundColor: Colors.light.surfaceAlt },
-              ]}
-              onPress={() => handleSample(s.url)}
-              disabled={isLoading}
-            >
-              <View style={styles.suggestionIcon}>
-                <Feather name="rss" size={14} color={Colors.light.accent} />
-              </View>
-              <View style={styles.suggestionText}>
-                <Text style={styles.suggestionName}>{s.name}</Text>
-                <Text style={styles.suggestionUrl} numberOfLines={1}>
-                  {s.url}
-                </Text>
-              </View>
-              <Feather name="plus" size={16} color={Colors.light.textTertiary} />
-            </Pressable>
-          ))}
-        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
